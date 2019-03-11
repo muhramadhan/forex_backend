@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -21,6 +22,72 @@ from models import TrackRate, ExchangeRate, ExchangeRateData
 @app.route("/")
 def hello():
     return "Hello World!"
+
+
+@app.route("/api/rate_data/add", methods=['POST'])
+def add_rate_data():
+    date = request.form.get('date')
+    base = request.form.get('base')
+    to = request.form.get('to')
+    rate = request.form.get('rate')
+
+    try:
+        exchangerate = ExchangeRate.query.filter_by(base = base,  to = to).first()
+        # If exchange rate doesn't exist
+        if exchangerate == None:
+            new_exchangeratedata = ExchangeRateData(date = datetime.date(datetime.strptime(date, '%Y-%m-%d')), rate_value = rate)
+            new_exchangerate = ExchangeRate(base = base, to = to)
+            new_exchangerate.rate_data.append([new_exchangeratedata])
+            db.session.add(new_exchangerate)
+            db.session.add(new_exchangeratedata)
+            exchangerate = new_exchangerate
+        # If exchange rate already exist
+        else:
+            new_exchangeratedata = ExchangeRateData(date = datetime.date(datetime.strptime(date, '%Y-%m-%d')), rate_value = rate)
+            exchangerate.append([new_exchangeratedata])
+            db.session.add(new_exchangeratedata)
+        db.session.commit()
+        return jsonify(exchangerate.serialize())
+    except Exception as e:
+        return(str(e))
+session
+
+@app.route("/api/rate_data")
+def show_rate_data():
+    base = request.args.get('base')
+    to = request.args.get('to')
+    try:
+        exchangerate = ExchangeRate.query.filter_by(base = base, to = to).first()
+        ret_json = jsonify(exchangerate.serialize())
+        ret_json['statistic'] = exchangerate.statistic(datetime.date(datetime.now()))
+        return ret_json
+    except Exception as e:
+        return (str(e))
+
+
+@app.route("/api/track/<date_to_show>")
+def show_track_rate(date_to_show):
+    date = datetime.strptime(date_to_show, '%Y-%m-%d')
+    try:
+        tracked_rates = db.session.query(TrackRate).\
+                                join(TrackRate.rate).\
+                                join(ExchangeRate.rate_data).\
+                                filter(ExchangeRateData.date == datetime.date(date))
+        ret_json = []
+        for tracked_rate in tracked_rates:
+            json = tracked_rate.rate.serialize()
+            if tracked_rate.rate.rate_data.count() < 7:
+                json['rate']['rate_data'] = 'insufficient data'
+            ret_json.append(json)
+        return jsonify(ret_json)
+    except Exception as e:
+        return (str(e))
+
+##TODO ADD RATE TO LIST
+
+
+##TODO DELETE RATE FROM LIST
+
 
 if __name__ == '__main__':
     app.run()
