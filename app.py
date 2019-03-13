@@ -1,9 +1,10 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, abort
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
 app = Flask(__name__)
 
+app.config['DEBUG'] = True
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 POSTGRES = {
     'user': 'postgres',
@@ -40,7 +41,7 @@ def add_rate_data():
                                                      '%Y-%m-%d')),
                                                     rate_value=rate)
             new_exchangerate = ExchangeRate(base=base, to=to)
-            new_exchangerate.rate_data.append([new_exchangeratedata])
+            new_exchangerate.rate_data.append(new_exchangeratedata)
             db.session.add(new_exchangerate)
             db.session.add(new_exchangeratedata)
             exchangerate = new_exchangerate
@@ -50,81 +51,92 @@ def add_rate_data():
                                                     date(datetime.strptime
                                                          (date, '%Y-%m-%d')),
                                                     rate_value=rate)
-            exchangerate.append([new_exchangeratedata])
+            exchangerate.rate_data.append(new_exchangeratedata)
             db.session.add(new_exchangeratedata)
         db.session.commit()
-        return jsonify(exchangerate.serialize())
+        ret_json = exchangerate.serialize()
+        ret_json['new_rate_data'] = new_exchangeratedata.serialize()
+        return jsonify(ret_json)
     except Exception as e:
-        return(str(e))
+        abort(500, str(e))
 
 
-@app.route("/api/rate_data")
+@app.route("/api/rate_data", methods=['GET'])
 def show_rate_data():
     base = request.args.get('base')
     to = request.args.get('to')
     try:
         exchangerate = ExchangeRate.query.filter_by(base=base,
                                                     to=to).first()
-        ret_json = jsonify(exchangerate.serialize())
+        exchangeratedatas = exchangerate.rate_data.limit(7)
+
+        ret_json = exchangerate.serialize()
+        # recent data so max allowerd year
         ret_json['statistic'] = exchangerate.statistic(datetime.
-                                                       date(datetime.now()))
-        return ret_json
+                                                       date(datetime.max))
+        ret_json['rate_data'] = [e.serialize() for e in exchangeratedatas]
+        return jsonify(ret_json)
     except Exception as e:
-        return (str(e))
+        abort(500, str(e))
 
 
-@app.route("/api/track/<date_to_show>")
+@app.route("/api/track/<date_to_show>", methods=['GET'])
 def show_track_rate(date_to_show):
     date = datetime.strptime(date_to_show, '%Y-%m-%d')
     try:
-        tracked_rates = db.session.query(TrackRate).\
-                                join(TrackRate.rate).\
-                                join(ExchangeRate.rate_data).\
-                                filter(ExchangeRateData.date == datetime.
-                                       date(date))
+        tracked_rates = db.session.query(TrackRate)
         ret_json = []
         for tracked_rate in tracked_rates:
+            rate_datas = [e for e in tracked_rate.rate.rate_data if e.date <= datetime.date(date)]
             json = tracked_rate.rate.serialize()
-            if tracked_rate.rate.rate_data.count() < 7:
-                json['rate']['rate_data'] = 'insufficient data'
+            print(len(rate_datas[0:7]))
+            if len(rate_datas) < 7:
+                json['rate'] = 'insufficient data'
+            else:
+                json['rate'] = [e.serialize() for e in rate_datas[0:7]]
+                json['statistic'] = tracked_rate.rate.statistic(datetime.date(date))
             ret_json.append(json)
         return jsonify(ret_json)
     except Exception as e:
-        return (str(e))
+        abort(500, str(e))
 
 
-# TODO ADD RATE TO LIST
 @app.route("/api/track/add", methods=['POST'])
 def add_track_rate():
     base = request.form.get('base')
     to = request.form.get('to')
     try:
-        exchangerate = ExchangeRate.query.filter(base=base, to=to).first()
+        exchangerate = ExchangeRate.query.filter_by(base=base, to=to).first()
         if exchangerate is None:
             exchangerate = ExchangeRate(base=base, to=to)
             db.session.add(exchangerate)
-        new_trackrate = TrackRate(rate=[exchangerate])
+        new_trackrate = TrackRate(rate=exchangerate)
         db.session.add(new_trackrate)
         db.session.commit()
         return jsonify(new_trackrate.serialize())
     except Exception as e:
-        return (str(e))
+        abort(500, str(e))
 
 
-# TODO DELETE RATE FROM LIST
 @app.route("/api/track/delete", methods=['POST'])
 def remove_track_rate():
     base = request.form.get('base')
     to = request.form.get('to')
     try:
         trackrate = db.session.query(TrackRate).join(TrackRate.rate).\
-                    filter_by(ExchangeRate.base == base,
-                              ExchangeRate.to == to).first()
-        db.session.delete(trackrate)
-        db.session.commit()
-        return jsonify(trackrate.serialize())
+                    filter(ExchangeRate.base == base,
+                           ExchangeRate.to == to).first()
+        if trackrate is not None:
+            db.session.delete(trackrate)
+            ret_json = trackrate.serialize()
+            db.session.commit()
+            return jsonify(ret_json)
+        else:
+            raise ValueError('Data not found')
+    except ValueError as e:
+        abort(400, str(e))
     except Exception as e:
-        return (str(e))
+        abort(500, str(e))
 
 
 if __name__ == '__main__':

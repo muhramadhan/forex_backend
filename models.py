@@ -15,7 +15,7 @@ class TrackRate(db.Model):
     def serialize(self):
         return {
             'id': self.id,
-            'rate': self.rate
+            'rate': self.rate.serialize()
         }
 
 
@@ -25,13 +25,11 @@ class ExchangeRate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     base = db.Column(db.String(5), nullable=False)
     to = db.Column(db.String(5), nullable=False)
-    rate_data = db.relationship('RateData', backref=db.backref('exchangerate'),
-                                lazy=True)
+    rate_data = db.relationship('ExchangeRateData',order_by='desc(ExchangeRateData.date)', backref=db.backref('exchangerate'),
+                                lazy='dynamic')
 
     def statistic(self, date):
-        rate_datas = self.rate_data.query.filter(self.date <= datetime.
-                                                 date(date)).\
-                                                 order_by('date desc').limit(7)
+        rate_datas = self.rate_data.filter(ExchangeRateData.date <= date).limit(7)
         min = float('inf')
         max = float('-inf')
         total = 0
@@ -50,8 +48,7 @@ class ExchangeRate(db.Model):
         return{
             'id': self.id,
             'base': self.base,
-            'to': self.to,
-            'rate_data': self.rate_data.serialize()
+            'to': self.to
         }
 
 
