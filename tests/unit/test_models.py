@@ -11,7 +11,7 @@ def test_new_rate(new_exchangerate, new_rate_data):
     assert new_exchangerate.to == 'IDR'
     assert new_exchangerate.rate_data.count() > 0
 
-def test_new_trackrate(new_exchangerate, new_trackrate,):
+def test_new_trackrate(new_exchangerate, new_trackrate):
     new_trackrate.rate.append(new_exchangerate)
     assert len(new_trackrate.rate) == 1
 
