@@ -56,6 +56,7 @@ def add_rate_data():
         db.session.commit()
         ret_json = exchangerate.serialize()
         ret_json['new_rate_data'] = new_exchangeratedata.serialize()
+        ret_json['success'] = True
         return jsonify(ret_json)
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
