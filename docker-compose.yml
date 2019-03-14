@@ -1,0 +1,26 @@
+version: "3"
+services:
+  PostgreSQL:
+    restart: always
+    image: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - DEBUG=true
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=forex
+    volumes:
+      - /srv/docker/postgresql:/var/lib/postgresql
+
+  forex_backend:
+    build:
+      context: .
+    command: >
+      /bin/bash -c "python3 manage.py db init; python3 manage.py db migrate; python3 manage.py db upgrade; python3 manage.py runserver -h 0.0.0.0 -p 5000 -d"
+    ports:
+      - 5000:5000
+    volumes:
+      - .:/code
+    links:
+      - PostgreSQL

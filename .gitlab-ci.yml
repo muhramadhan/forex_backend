@@ -1,0 +1,17 @@
+image: python:latest
+
+services:
+  - postgres:latest
+variables:
+  POSTGRES_DB: forex_test
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+
+stages:
+  - test
+
+test_unit_functional:
+  stage: test
+  script:
+    - pip install -r requirements.txt
+    - python3 -m pytest -v --disable-pytest-warnings

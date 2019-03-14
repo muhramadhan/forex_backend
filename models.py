@@ -1,16 +1,11 @@
 from app import db
-from datetime import datetime
-
 
 class TrackRate(db.Model):
     __tablename__ = 'trackrate'
 
     id = db.Column(db.Integer, primary_key=True)
-    rate_id = db.Column(db.Integer, db.ForeignKey('exchangerate.id'))
+    rate_id = db.Column(db.Integer, db.ForeignKey('exchangerate.id'), unique=True)
     rate = db.relationship('ExchangeRate', foreign_keys=rate_id)
-
-    def __repr__(self):
-        return '<id {}>'.format(self.id)
 
     def serialize(self):
         return {
