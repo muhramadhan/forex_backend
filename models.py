@@ -7,9 +7,6 @@ class TrackRate(db.Model):
     rate_id = db.Column(db.Integer, db.ForeignKey('exchangerate.id'), unique=True)
     rate = db.relationship('ExchangeRate', foreign_keys=rate_id)
 
-    def __repr__(self):
-        return '<id {}>'.format(self.id)
-
     def serialize(self):
         return {
             'id': self.id,

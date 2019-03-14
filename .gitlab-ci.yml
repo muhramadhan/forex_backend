@@ -1,0 +1,13 @@
+image: python:latest
+
+services:
+  - postgres:latest
+
+stages:
+  - test
+
+test_unit_functional:
+  stage: test
+  script:
+    - pip install -r requirements.txt
+    - python3 -m pytest -v --disable-pytest-warnings

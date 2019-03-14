@@ -10,7 +10,7 @@ POSTGRES = {
     'user': 'postgres',
     'pw': 'postgres',
     'db': 'forex',
-    'host': 'localhost',
+    'host': 'PostgreSQL',
     'port': '5432',
 }
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://%(user)s:\
@@ -58,7 +58,6 @@ def add_rate_data():
         ret_json['new_rate_data'] = new_exchangeratedata.serialize()
         return jsonify(ret_json)
     except Exception as e:
-        print(e)
         return jsonify({'success': False, 'message': str(e)})
 
 
@@ -80,7 +79,6 @@ def show_rate_data():
             ret_json['rate_data'] = [e.serialize() for e in exchangeratedatas]
             return jsonify(ret_json)
     except Exception as e:
-        print(e)
         return jsonify({'success': False, 'message': str(e)})
 
 
@@ -90,6 +88,7 @@ def show_track_rate(date_to_show):
     try:
         tracked_rates = db.session.query(TrackRate)
         ret_json = dict()
+        ret_json['exchanges'] = []
         for tracked_rate in tracked_rates:
             rate_datas = [e for e in tracked_rate.rate.rate_data if e.date <= datetime.date(date)]
             json = tracked_rate.rate.serialize()
@@ -98,8 +97,8 @@ def show_track_rate(date_to_show):
             else:
                 json['rate'] = [e.serialize() for e in rate_datas[0:7]]
                 json['statistic'] = tracked_rate.rate.statistic(datetime.date(date))
-            ret_json['exchanges'] = [json]
-            ret_json['success'] = True
+            ret_json['exchanges'].append(json)
+        ret_json['success'] = True
         return jsonify(ret_json)
     except Exception as e:
         return jsonify({'success': False, 'message': e.orig.args})
@@ -141,7 +140,6 @@ def remove_track_rate():
         else:
             raise ValueError('Data not found')
     except ValueError as e:
-        print(e)
         return jsonify({'success': False, 'message': str(e)})
     except Exception as e:
         return jsonify({'success': False, 'message': e.orig.args})
