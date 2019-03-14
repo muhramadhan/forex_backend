@@ -2,6 +2,10 @@ image: python:latest
 
 services:
   - postgres:latest
+variables:
+  POSTGRES_DB: forex_test
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
 
 stages:
   - test
